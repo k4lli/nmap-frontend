@@ -1,0 +1,474 @@
+/* Wire Interpreter - Cyberpunk HUD Interface */
+
+/* Cyberpunk Color Palette */
+:root {
+    --cyber-black: #0a0a0a;
+    --cyber-dark: #111111;
+    --cyber-gray: #1a1a1a;
+    --cyber-cyan: #00ffff;
+    --cyber-cyan-bright: #00ffff;
+    --cyber-cyan-dim: #00aaaa;
+    --cyber-cyan-dark: #008888;
+    --cyber-cyan-darker: #004444;
+    --cyber-magenta: #ff00ff;
+    --cyber-red: #ff0044;
+    --cyber-green: #00ff44;
+    --glow-intensity: 0 0 20px rgba(0, 255, 255, 0.8);
+    --glow-subtle: 0 0 10px rgba(0, 255, 255, 0.4);
+    --glow-minimal: 0 0 5px rgba(0, 255, 255, 0.2);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Orbitron', 'Courier New', monospace;
+    background: linear-gradient(135deg, var(--cyber-black) 0%, var(--cyber-dark) 50%, var(--cyber-black) 100%);
+    color: var(--cyber-cyan);
+    overflow: hidden;
+    height: 100vh;
+    position: relative;
+}
+
+/* Animated Background Grid */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image:
+        linear-gradient(rgba(0, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 50px 50px;
+    animation: gridMove 20s linear infinite;
+    z-index: -1;
+}
+
+@keyframes gridMove {
+    0% { transform: translate(0, 0); }
+    100% { transform: translate(50px, 50px); }
+}
+
+/* Main Container - HUD Layout */
+.container {
+    display: grid;
+    grid-template-columns: 350px 1fr;
+    grid-template-rows: 280px 1fr 200px;
+    gap: 15px;
+    height: 100vh;
+    padding: 20px;
+    position: relative;
+}
+
+/* HUD Panels - Glass Morphism Effect */
+.panel {
+    background: linear-gradient(135deg,
+        rgba(0, 255, 255, 0.1) 0%,
+        rgba(0, 255, 255, 0.05) 50%,
+        rgba(0, 255, 255, 0.02) 100%);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(0, 255, 255, 0.3);
+    border-radius: 15px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    box-shadow:
+        0 8px 32px rgba(0, 255, 255, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        var(--cyber-cyan) 50%,
+        transparent 100%);
+    box-shadow: var(--glow-intensity);
+}
+
+/* Panel Headers - Holographic Effect */
+.panel h2 {
+    font-size: 16px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 20px;
+    color: var(--cyber-cyan);
+    text-shadow: var(--glow-subtle);
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.panel h2::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        var(--cyber-cyan) 50%,
+        transparent 100%);
+}
+
+/* Configuration Panel */
+.config-panel {
+    grid-column: 1;
+    grid-row: 1;
+    background: linear-gradient(135deg,
+        rgba(0, 255, 255, 0.08) 0%,
+        rgba(0, 255, 255, 0.04) 100%);
+}
+
+.config-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 15px;
+}
+
+.config-item {
+    position: relative;
+}
+
+.config-item label {
+    display: block;
+    font-size: 11px;
+    color: var(--cyber-cyan-dim);
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 500;
+}
+
+.config-item input,
+.config-item select {
+    width: 100%;
+    background: rgba(0, 255, 255, 0.05);
+    border: 1px solid rgba(0, 255, 255, 0.3);
+    border-radius: 8px;
+    padding: 12px 15px;
+    color: var(--cyber-cyan);
+    font-family: inherit;
+    font-size: 12px;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.config-item input:focus,
+.config-item select:focus {
+    outline: none;
+    border-color: var(--cyber-cyan);
+    box-shadow: var(--glow-subtle);
+    background: rgba(0, 255, 255, 0.08);
+}
+
+.config-item input::placeholder {
+    color: var(--cyber-cyan-dark);
+}
+
+/* Checkbox Styling */
+.config-item input[type="checkbox"] {
+    width: auto;
+    margin-right: 10px;
+}
+
+.config-item label:has(input[type="checkbox"]) {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    margin-bottom: 0;
+}
+
+/* Cyberpunk Scan Button */
+.scan-button {
+    width: 100%;
+    background: linear-gradient(135deg,
+        rgba(0, 255, 255, 0.2) 0%,
+        rgba(0, 255, 255, 0.1) 100%);
+    border: 1px solid var(--cyber-cyan);
+    border-radius: 10px;
+    color: var(--cyber-cyan);
+    padding: 15px 20px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    margin-top: 10px;
+    box-shadow: var(--glow-minimal);
+}
+
+.scan-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(0, 255, 255, 0.4) 50%,
+        transparent 100%);
+    transition: left 0.5s ease;
+}
+
+.scan-button:hover::before {
+    left: 100%;
+}
+
+.scan-button:hover {
+    background: linear-gradient(135deg,
+        rgba(0, 255, 255, 0.3) 0%,
+        rgba(0, 255, 255, 0.2) 100%);
+    box-shadow: var(--glow-subtle);
+    transform: translateY(-2px);
+}
+
+.scan-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
+.scan-button.loading {
+    animation: cyberPulse 1.5s infinite;
+}
+
+@keyframes cyberPulse {
+    0%, 100% {
+        box-shadow: var(--glow-minimal);
+        border-color: var(--cyber-cyan);
+    }
+    50% {
+        box-shadow: var(--glow-intensity);
+        border-color: var(--cyber-cyan-bright);
+    }
+}
+
+/* Network Graph Panel */
+.graph-panel {
+    grid-column: 2;
+    grid-row: span 2;
+    background: linear-gradient(135deg,
+        rgba(0, 255, 255, 0.06) 0%,
+        rgba(0, 255, 255, 0.03) 100%);
+}
+
+#network-graph {
+    width: 100%;
+    height: 100%;
+    border-radius: 10px;
+    background: rgba(0, 255, 255, 0.02);
+    border: 1px solid rgba(0, 255, 255, 0.2);
+}
+
+/* Logging Panel */
+.log-panel {
+    grid-column: 1;
+    grid-row: 2 / span 2;
+    background: linear-gradient(135deg,
+        rgba(0, 255, 255, 0.05) 0%,
+        rgba(0, 255, 255, 0.02) 100%);
+}
+
+.log-output {
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 255, 255, 0.02);
+    border: 1px solid rgba(0, 255, 255, 0.2);
+    border-radius: 10px;
+    padding: 15px;
+    font-family: 'Fira Code', 'Courier New', monospace;
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--cyber-cyan);
+    overflow-y: auto;
+    position: relative;
+}
+
+/* Custom Scrollbar */
+.log-output::-webkit-scrollbar {
+    width: 8px;
+}
+
+.log-output::-webkit-scrollbar-track {
+    background: rgba(0, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+.log-output::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg,
+        var(--cyber-cyan-dark) 0%,
+        var(--cyber-cyan) 50%,
+        var(--cyber-cyan-dark) 100%);
+    border-radius: 4px;
+    box-shadow: inset 0 0 5px rgba(0, 255, 255, 0.3);
+}
+
+.log-output::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg,
+        var(--cyber-cyan-dim) 0%,
+        var(--cyber-cyan-bright) 50%,
+        var(--cyber-cyan-dim) 100%);
+}
+
+/* Status Colors */
+.status-error {
+    color: var(--cyber-red);
+    text-shadow: 0 0 5px rgba(255, 0, 68, 0.5);
+}
+
+.status-success {
+    color: var(--cyber-green);
+    text-shadow: 0 0 5px rgba(0, 255, 68, 0.5);
+}
+
+.status-info {
+    color: var(--cyber-cyan-dim);
+}
+
+/* Vis.js Network Styling */
+.vis-network {
+    background: transparent !important;
+}
+
+.vis-network canvas {
+    background: transparent !important;
+}
+
+.vis-tooltip {
+    background: linear-gradient(135deg,
+        rgba(0, 255, 255, 0.1) 0%,
+        rgba(0, 255, 255, 0.05) 100%) !important;
+    border: 1px solid rgba(0, 255, 255, 0.3) !important;
+    color: var(--cyber-cyan) !important;
+    border-radius: 8px !important;
+    backdrop-filter: blur(10px) !important;
+    box-shadow: var(--glow-subtle) !important;
+}
+
+/* HUD Corners - Decorative Elements */
+.container::before,
+.container::after,
+.panel::after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border: 1px solid var(--cyber-cyan);
+    box-shadow: var(--glow-minimal);
+}
+
+.container::before {
+    top: 20px;
+    left: 20px;
+    border-right: none;
+    border-bottom: none;
+}
+
+.container::after {
+    top: 20px;
+    right: 20px;
+    border-left: none;
+    border-bottom: none;
+}
+
+.panel::after {
+    top: 15px;
+    right: 15px;
+    border-left: none;
+    border-bottom: none;
+    width: 10px;
+    height: 10px;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .container {
+        grid-template-columns: 300px 1fr;
+        grid-template-rows: 250px 1fr 180px;
+        padding: 15px;
+        gap: 10px;
+    }
+}
+
+@media (max-width: 768px) {
+    .container {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr auto;
+        padding: 10px;
+        gap: 10px;
+    }
+
+    .config-panel {
+        grid-column: 1;
+        grid-row: 1;
+    }
+
+    .graph-panel {
+        grid-column: 1;
+        grid-row: 2;
+        min-height: 300px;
+    }
+
+    .log-panel {
+        grid-column: 1;
+        grid-row: 3;
+        max-height: 150px;
+    }
+
+    .config-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .panel h2 {
+        font-size: 14px;
+        margin-bottom: 15px;
+    }
+}
+
+/* Loading Animation */
+@keyframes cyberFlicker {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+}
+
+.loading {
+    animation: cyberFlicker 2s infinite;
+}
+
+/* Data Stream Effect */
+.log-output::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        var(--cyber-cyan) 50%,
+        transparent 100%);
+    animation: dataStream 3s linear infinite;
+}
+
+@keyframes dataStream {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}

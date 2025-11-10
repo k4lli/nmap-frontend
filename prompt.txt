@@ -1,0 +1,14 @@
+please create a python application based on flask in its on virtual environment. 
+the application needs to be able to be dockerised. please also follow api first strategy. anything the UI does, should be based on API queries to backend.
+The idea for the app is a frontend for NMAP. It should have a modern cyber UI. I like green on black.
+
+for this application the front end should have a top part where you can configure main nmap parameters.
+It should have them pre-populated to my local network. make dropdowns or whatever suirs best for common scanner switches with explabnations
+then a button that executes the command. it slould also have a logging window. maybe at the very bottom full width. 
+the different windows should be resizable
+
+the main part is the output of our application. once the scan is finished the application should interpret the network layout and show all connected devies. 
+choose peoper icons for routers, media devices, try to interpret them based on their mac addresses. 
+
+it should be a clean network graph. 
+

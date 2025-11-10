@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wire Interpreter - Cyberpunk NMAP Scanner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&family=Fira+Code:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Configuration Panel -->
+        <div class="panel config-panel" id="config-panel">
+            <h2>NMAP Configuration</h2>
+            <div class="config-grid">
+                <div class="config-item">
+                    <label for="target">Target Network:</label>
+                    <input type="text" id="target" placeholder="192.168.1.0/24">
+                </div>
+                <div class="config-item">
+                    <label for="scan-type">Scan Type:</label>
+                    <select id="scan-type">
+                        <option value="-sn">Ping Scan (-sn) - Fast host discovery</option>
+                        <option value="-sS">SYN Scan (-sS) - Stealth scan, fast</option>
+                        <option value="-sV">Version Scan (-sV) - Service version detection</option>
+                        <option value="-O">OS Detection (-O) - Operating system fingerprinting</option>
+                        <option value="-A">Aggressive Scan (-A) - OS, version, script scanning</option>
+                        <option value="-p 1-1024">Port Scan (-p 1-1024) - Common ports</option>
+                        <option value="-p- -T4">Full Port Scan (-p- -T4) - All ports, fast</option>
+                    </select>
+                </div>
+                <div class="config-item">
+                    <label for="timing">Timing Template:</label>
+                    <select id="timing">
+                        <option value="">Default</option>
+                        <option value="-T0">Paranoid (-T0) - Very slow, for IDS evasion</option>
+                        <option value="-T1">Sneaky (-T1) - Slow, for IDS evasion</option>
+                        <option value="-T2">Polite (-T2) - Slow, reduces bandwidth</option>
+                        <option value="-T3">Normal (-T3) - Default timing</option>
+                        <option value="-T4">Aggressive (-T4) - Fast scan</option>
+                        <option value="-T5">Insane (-T5) - Very fast, may be unreliable</option>
+                    </select>
+                </div>
+                <div class="config-item">
+                    <label for="additional-options">Additional Options:</label>
+                    <input type="text" id="additional-options" placeholder="-v --reason">
+                </div>
+                <div class="config-item">
+                    <label for="thorough-scan">
+                        <input type="checkbox" id="thorough-scan">
+                        Thoroughly scan identified machines
+                    </label>
+                </div>
+            </div>
+            <button id="scan-button" class="scan-button">Start Scan</button>
+        </div>
+
+        <!-- Network Graph Panel -->
+        <div class="panel graph-panel" id="graph-panel">
+            <h2>Network Topology</h2>
+            <div id="network-graph"></div>
+        </div>
+
+        <!-- Logging Panel -->
+        <div class="panel log-panel" id="log-panel">
+            <h2>Scan Log</h2>
+            <div id="log-output" class="log-output"></div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
