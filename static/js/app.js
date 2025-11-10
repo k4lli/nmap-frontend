@@ -12,9 +12,7 @@ class WireInterpreter {
 
     init() {
         this.bindEvents();
-        this.loadNetworkInfo();
         this.initializeGraph();
-        this.startStatusUpdates();
     }
 
     bindEvents() {
@@ -240,6 +238,8 @@ class WireInterpreter {
 
             if (response.ok) {
                 this.logMessage(`Scan started on ${target} with options: ${options}${thoroughScan ? ' (thorough mode)' : ''}`, 'success');
+                // Start status updates when scan begins
+                this.startStatusUpdates();
             } else {
                 this.logMessage(`Error: ${result.error}`, 'error');
             }
