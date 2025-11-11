@@ -22,8 +22,10 @@ class WireInterpreter {
         const timingSelect = document.getElementById('timing');
         const additionalOptions = document.getElementById('additional-options');
         const thoroughScanCheckbox = document.getElementById('thorough-scan');
+        const logPanel = document.getElementById('log-panel');
 
         scanButton.addEventListener('click', () => this.startScan());
+        logPanel.addEventListener('click', () => this.showLogViewer());
 
         // Auto-populate target on load
         this.loadNetworkInfo().then(network => {
@@ -249,6 +251,72 @@ class WireInterpreter {
     hideDeviceDetailsPanel() {
         const panel = document.getElementById('device-details-panel');
         panel.classList.remove('active');
+    }
+
+    async showLogViewer() {
+        const panel = document.getElementById('log-viewer-panel');
+        const content = document.getElementById('log-viewer-content');
+
+        try {
+            // Get the full log from the backend
+            const response = await fetch('/api/scan/log');
+            const data = await response.json();
+
+            // Format the log content
+            const logContent = data.log.join('\n');
+
+            // Display the full log
+            content.innerHTML = `<pre class="full-log-content">${logContent}</pre>`;
+
+            // Show the panel with animation
+            panel.classList.add('active');
+
+            // Add close button event listener
+            document.getElementById('close-log-btn').onclick = () => {
+                this.hideLogViewer();
+            };
+
+            // Add export button event listener
+            document.getElementById('export-log-btn').onclick = () => {
+                this.exportLog(logContent);
+            };
+
+            // Close on outside click
+            panel.onclick = (e) => {
+                if (e.target === panel) {
+                    this.hideLogViewer();
+                }
+            };
+
+        } catch (error) {
+            console.error('Failed to load log:', error);
+            content.innerHTML = `<div class="log-error">Failed to load log content</div>`;
+            panel.classList.add('active');
+        }
+    }
+
+    hideLogViewer() {
+        const panel = document.getElementById('log-viewer-panel');
+        panel.classList.remove('active');
+    }
+
+    exportLog(logContent) {
+        // Create a blob with the log content
+        const blob = new Blob([logContent], { type: 'text/plain' });
+
+        // Create a temporary download link
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `nmap-scan-log-${new Date().toISOString().split('T')[0]}.txt`;
+
+        // Trigger the download
+        document.body.appendChild(a);
+        a.click();
+
+        // Clean up
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
     }
 
     getDetailedDeviceInfo(device) {

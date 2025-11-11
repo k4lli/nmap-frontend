@@ -255,5 +255,10 @@ def get_devices():
     global last_scan_devices
     return jsonify({'devices': last_scan_devices})
 
+@app.route('/api/scan/log')
+def get_full_log():
+    global scan_output
+    return jsonify({'log': scan_output})
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

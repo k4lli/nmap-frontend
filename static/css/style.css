@@ -776,6 +776,185 @@ body::before {
     letter-spacing: 1px;
 }
 
+/* Log Viewer Panel */
+.log-viewer-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    background: linear-gradient(135deg,
+        rgba(0, 255, 255, 0.15) 0%,
+        rgba(0, 255, 255, 0.08) 50%,
+        rgba(0, 255, 255, 0.03) 100%);
+    backdrop-filter: blur(25px);
+    border: 1px solid rgba(0, 255, 255, 0.4);
+    border-radius: 20px;
+    box-shadow:
+        0 20px 60px rgba(0, 255, 255, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    max-width: 800px;
+    max-height: 90vh;
+    width: 90vw;
+    opacity: 0;
+    visibility: hidden;
+    z-index: 1000;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    overflow: hidden;
+}
+
+.log-viewer-panel.active {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.log-viewer-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        var(--cyber-cyan) 30%,
+        var(--cyber-cyan-bright) 50%,
+        var(--cyber-cyan) 70%,
+        transparent 100%);
+    box-shadow: var(--glow-intensity);
+}
+
+/* Log Viewer Header */
+.log-viewer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 25px;
+    border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+    background: linear-gradient(135deg,
+        rgba(0, 255, 255, 0.05) 0%,
+        rgba(0, 255, 255, 0.02) 100%);
+}
+
+.log-viewer-header h3 {
+    margin: 0;
+    color: var(--cyber-cyan);
+    font-size: 18px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-shadow: var(--glow-subtle);
+}
+
+.log-viewer-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.export-log-btn {
+    background: linear-gradient(135deg,
+        rgba(0, 255, 255, 0.2) 0%,
+        rgba(0, 255, 255, 0.1) 100%);
+    border: 1px solid var(--cyber-cyan);
+    border-radius: 8px;
+    color: var(--cyber-cyan);
+    padding: 8px 12px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: var(--glow-minimal);
+}
+
+.export-log-btn:hover {
+    background: linear-gradient(135deg,
+        rgba(0, 255, 255, 0.3) 0%,
+        rgba(0, 255, 255, 0.2) 100%);
+    box-shadow: var(--glow-subtle);
+    transform: translateY(-1px);
+}
+
+.export-log-btn i {
+    font-size: 11px;
+}
+
+.close-log-btn {
+    background: none;
+    border: none;
+    color: var(--cyber-cyan);
+    font-size: 24px;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    width: 35px;
+    height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.close-log-btn:hover {
+    background: rgba(0, 255, 255, 0.1);
+    color: var(--cyber-cyan-bright);
+    box-shadow: var(--glow-minimal);
+    transform: rotate(90deg);
+}
+
+/* Log Viewer Content */
+.log-viewer-content {
+    padding: 0;
+    max-height: calc(90vh - 80px);
+    overflow: hidden;
+}
+
+.full-log-content {
+    margin: 0;
+    padding: 20px;
+    background: rgba(0, 255, 255, 0.02);
+    color: var(--cyber-cyan);
+    font-family: 'Fira Code', 'Courier New', monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-height: calc(90vh - 120px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--cyber-cyan) rgba(0, 255, 255, 0.1);
+}
+
+.full-log-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.full-log-content::-webkit-scrollbar-track {
+    background: rgba(0, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+.full-log-content::-webkit-scrollbar-thumb {
+    background: var(--cyber-cyan);
+    border-radius: 4px;
+    box-shadow: inset 0 0 3px rgba(0, 255, 255, 0.3);
+}
+
+.log-error {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--cyber-red);
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
 /* Responsive Design for Device Details */
 @media (max-width: 768px) {
     .device-details-panel {
@@ -811,5 +990,31 @@ body::before {
 
     .port-item {
         padding: 10px;
+    }
+}
+
+/* Responsive Design for Log Viewer */
+@media (max-width: 768px) {
+    .log-viewer-panel {
+        width: 95vw;
+        max-height: 95vh;
+        margin: 10px;
+    }
+
+    .log-viewer-header {
+        padding: 15px 20px;
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
+    }
+
+    .log-viewer-actions {
+        align-self: flex-end;
+    }
+
+    .full-log-content {
+        padding: 15px;
+        font-size: 11px;
+        max-height: calc(95vh - 100px);
     }
 }

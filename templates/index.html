@@ -81,6 +81,22 @@
                 <!-- Device details will be populated here -->
             </div>
         </div>
+
+        <!-- Log Viewer Panel -->
+        <div class="log-viewer-panel" id="log-viewer-panel">
+            <div class="log-viewer-header">
+                <h3>Scan Log Viewer</h3>
+                <div class="log-viewer-actions">
+                    <button class="export-log-btn" id="export-log-btn">
+                        <i class="fas fa-download"></i> Export Log
+                    </button>
+                    <button class="close-log-btn" id="close-log-btn">×</button>
+                </div>
+            </div>
+            <div class="log-viewer-content" id="log-viewer-content">
+                <!-- Full log content will be populated here -->
+            </div>
+        </div>
     </div>
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
