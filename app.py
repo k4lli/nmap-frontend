@@ -222,9 +222,14 @@ def get_network():
 
 @app.route('/api/scan', methods=['POST'])
 def start_scan():
-    global scan_in_progress
+    global scan_in_progress, scan_output, last_scan_devices
+
+    # Reset scan state if a scan is in progress
     if scan_in_progress:
-        return jsonify({'error': 'Scan already in progress'}), 400
+        scan_output.append("⚠️ Previous scan cancelled - starting new scan")
+        scan_in_progress = False
+        last_scan_devices = []
+        time.sleep(0.5)  # Brief pause to allow cleanup
 
     data = request.get_json()
     target = data.get('target', get_local_network())

@@ -58,7 +58,7 @@ body::before {
 .container {
     display: grid;
     grid-template-columns: 350px 1fr;
-    grid-template-rows: 280px 1fr 200px;
+    grid-template-rows: 1fr 150px;
     gap: 15px;
     height: 100vh;
     padding: 20px;
@@ -124,7 +124,7 @@ body::before {
 /* Configuration Panel */
 .config-panel {
     grid-column: 1;
-    grid-row: 1;
+    grid-row: 1 / -1;
     background: linear-gradient(135deg,
         rgba(0, 255, 255, 0.08) 0%,
         rgba(0, 255, 255, 0.04) 100%);
@@ -263,7 +263,7 @@ body::before {
 /* Network Graph Panel */
 .graph-panel {
     grid-column: 2;
-    grid-row: span 2;
+    grid-row: 1;
     background: linear-gradient(135deg,
         rgba(0, 255, 255, 0.06) 0%,
         rgba(0, 255, 255, 0.03) 100%);
@@ -279,8 +279,8 @@ body::before {
 
 /* Logging Panel */
 .log-panel {
-    grid-column: 1;
-    grid-row: 2 / span 2;
+    grid-column: 2;
+    grid-row: 2;
     background: linear-gradient(135deg,
         rgba(0, 255, 255, 0.05) 0%,
         rgba(0, 255, 255, 0.02) 100%);
@@ -401,7 +401,7 @@ body::before {
 @media (max-width: 1200px) {
     .container {
         grid-template-columns: 300px 1fr;
-        grid-template-rows: 250px 1fr 180px;
+        grid-template-rows: 1fr 120px;
         padding: 15px;
         gap: 10px;
     }
@@ -410,7 +410,7 @@ body::before {
 @media (max-width: 768px) {
     .container {
         grid-template-columns: 1fr;
-        grid-template-rows: auto 1fr auto;
+        grid-template-rows: 1fr 120px;
         padding: 10px;
         gap: 10px;
     }
@@ -422,14 +422,14 @@ body::before {
 
     .graph-panel {
         grid-column: 1;
-        grid-row: 2;
+        grid-row: 1;
         min-height: 300px;
     }
 
     .log-panel {
         grid-column: 1;
-        grid-row: 3;
-        max-height: 150px;
+        grid-row: 2;
+        max-height: 120px;
     }
 
     .config-grid {
@@ -471,4 +471,345 @@ body::before {
 @keyframes dataStream {
     0% { transform: translateX(-100%); }
     100% { transform: translateX(100%); }
+}
+
+/* Device Details Panel */
+.device-details-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    background: linear-gradient(135deg,
+        rgba(0, 255, 255, 0.15) 0%,
+        rgba(0, 255, 255, 0.08) 50%,
+        rgba(0, 255, 255, 0.03) 100%);
+    backdrop-filter: blur(25px);
+    border: 1px solid rgba(0, 255, 255, 0.4);
+    border-radius: 20px;
+    box-shadow:
+        0 20px 60px rgba(0, 255, 255, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    max-width: 600px;
+    max-height: 80vh;
+    width: 90vw;
+    opacity: 0;
+    visibility: hidden;
+    z-index: 1000;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    overflow: hidden;
+}
+
+.device-details-panel.active {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.device-details-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        var(--cyber-cyan) 30%,
+        var(--cyber-cyan-bright) 50%,
+        var(--cyber-cyan) 70%,
+        transparent 100%);
+    box-shadow: var(--glow-intensity);
+}
+
+/* Device Details Header */
+.device-details-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 25px;
+    border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+    background: linear-gradient(135deg,
+        rgba(0, 255, 255, 0.05) 0%,
+        rgba(0, 255, 255, 0.02) 100%);
+}
+
+.device-details-header h3 {
+    margin: 0;
+    color: var(--cyber-cyan);
+    font-size: 18px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-shadow: var(--glow-subtle);
+}
+
+.close-details-btn {
+    background: none;
+    border: none;
+    color: var(--cyber-cyan);
+    font-size: 24px;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    width: 35px;
+    height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.close-details-btn:hover {
+    background: rgba(0, 255, 255, 0.1);
+    color: var(--cyber-cyan-bright);
+    box-shadow: var(--glow-minimal);
+    transform: rotate(90deg);
+}
+
+/* Device Details Content */
+.device-details-content {
+    padding: 25px;
+    max-height: calc(80vh - 80px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--cyber-cyan) rgba(0, 255, 255, 0.1);
+}
+
+.device-details-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.device-details-content::-webkit-scrollbar-track {
+    background: rgba(0, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.device-details-content::-webkit-scrollbar-thumb {
+    background: var(--cyber-cyan);
+    border-radius: 3px;
+    box-shadow: inset 0 0 3px rgba(0, 255, 255, 0.3);
+}
+
+/* Device Overview Section */
+.device-overview {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 30px;
+    align-items: flex-start;
+}
+
+.device-icon {
+    flex-shrink: 0;
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg,
+        rgba(0, 255, 255, 0.2) 0%,
+        rgba(0, 255, 255, 0.1) 100%);
+    border: 2px solid var(--cyber-cyan);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--glow-subtle);
+    animation: iconPulse 3s ease-in-out infinite;
+}
+
+.device-icon i {
+    font-size: 24px;
+    color: var(--cyber-cyan);
+}
+
+@keyframes iconPulse {
+    0%, 100% { box-shadow: var(--glow-subtle); }
+    50% { box-shadow: var(--glow-intensity); }
+}
+
+.device-basic-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.info-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(0, 255, 255, 0.1);
+}
+
+.info-row:last-child {
+    border-bottom: none;
+}
+
+.info-row .label {
+    font-size: 12px;
+    color: var(--cyber-cyan-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+    min-width: 100px;
+    flex-shrink: 0;
+}
+
+.info-row .value {
+    font-size: 13px;
+    color: var(--cyber-cyan);
+    font-family: 'Fira Code', monospace;
+    word-break: break-all;
+}
+
+.info-row .value.status-up {
+    color: var(--cyber-green);
+    text-shadow: 0 0 5px rgba(0, 255, 68, 0.5);
+}
+
+.info-row .value.status-down {
+    color: var(--cyber-red);
+    text-shadow: 0 0 5px rgba(255, 0, 68, 0.5);
+}
+
+/* Device Ports Section */
+.device-ports {
+    margin-top: 25px;
+}
+
+.device-ports h4 {
+    margin: 0 0 15px 0;
+    color: var(--cyber-cyan);
+    font-size: 16px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid rgba(0, 255, 255, 0.3);
+    padding-bottom: 8px;
+}
+
+.ports-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.port-item {
+    background: linear-gradient(135deg,
+        rgba(0, 255, 255, 0.08) 0%,
+        rgba(0, 255, 255, 0.04) 100%);
+    border: 1px solid rgba(0, 255, 255, 0.2);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.port-item:hover {
+    background: linear-gradient(135deg,
+        rgba(0, 255, 255, 0.12) 0%,
+        rgba(0, 255, 255, 0.08) 100%);
+    border-color: var(--cyber-cyan);
+    box-shadow: var(--glow-minimal);
+    transform: translateY(-2px);
+}
+
+.port-number {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--cyber-cyan);
+    font-family: 'Fira Code', monospace;
+    margin-bottom: 4px;
+}
+
+.port-service {
+    font-size: 11px;
+    color: var(--cyber-cyan-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.port-state {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+}
+
+.port-state.status-open {
+    background: rgba(0, 255, 68, 0.2);
+    color: var(--cyber-green);
+    border: 1px solid rgba(0, 255, 68, 0.3);
+}
+
+.port-state.status-closed {
+    background: rgba(255, 0, 68, 0.2);
+    color: var(--cyber-red);
+    border: 1px solid rgba(255, 0, 68, 0.3);
+}
+
+.port-state.status-filtered {
+    background: rgba(255, 170, 0, 0.2);
+    color: #ffaa00;
+    border: 1px solid rgba(255, 170, 0, 0.3);
+}
+
+/* No Ports Message */
+.no-ports {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--cyber-cyan-dim);
+}
+
+.no-ports i {
+    font-size: 48px;
+    margin-bottom: 15px;
+    opacity: 0.6;
+}
+
+.no-ports p {
+    margin: 0;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Responsive Design for Device Details */
+@media (max-width: 768px) {
+    .device-details-panel {
+        width: 95vw;
+        max-height: 90vh;
+        margin: 10px;
+    }
+
+    .device-overview {
+        flex-direction: column;
+        text-align: center;
+        gap: 15px;
+    }
+
+    .device-basic-info {
+        align-items: center;
+    }
+
+    .info-row {
+        flex-direction: column;
+        gap: 4px;
+        align-items: center;
+    }
+
+    .info-row .label {
+        min-width: auto;
+    }
+
+    .ports-grid {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 8px;
+    }
+
+    .port-item {
+        padding: 10px;
+    }
 }

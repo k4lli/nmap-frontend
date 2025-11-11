@@ -149,7 +149,7 @@ class WireInterpreter {
             const nodeId = params.nodes[0];
             const device = this.devices.find(d => d.ip === nodeId);
             if (device) {
-                this.showDeviceDetails(device);
+                this.showDeviceDetailsPanel(device);
             }
         }
     }
@@ -158,29 +158,97 @@ class WireInterpreter {
         // Tooltip is handled by vis.js automatically with node titles
     }
 
-    showDeviceDetails(device) {
-        // Create a modal or detailed view for device information
-        const details = this.getDetailedDeviceInfo(device);
+    showDeviceDetailsPanel(device) {
+        const panel = document.getElementById('device-details-panel');
+        const title = document.getElementById('device-details-title');
+        const content = document.getElementById('device-details-content');
 
-        // For now, show in log window - could be enhanced with a modal
-        this.logMessage(`=== Device Details: ${device.hostname || device.ip} ===`, 'info');
-        this.logMessage(`IP Address: ${device.ip}`, 'info');
-        this.logMessage(`MAC Address: ${device.mac}`, 'info');
-        this.logMessage(`Vendor: ${device.vendor}`, 'info');
-        if (device.hostname && device.hostname !== 'Unknown') {
-            this.logMessage(`Hostname: ${device.hostname}`, 'info');
-        }
-        this.logMessage(`Device Type: ${this.getDeviceType(device)}`, 'info');
+        // Set device title
+        title.textContent = device.hostname && device.hostname !== 'Unknown' ? device.hostname : device.ip;
 
-        if (device.ports && device.ports.length > 0) {
-            this.logMessage(`Open Ports (${device.ports.length}):`, 'info');
-            device.ports.forEach(port => {
-                this.logMessage(`  ${port.port}/${port.service} (${port.state})`, 'info');
-            });
-        } else {
-            this.logMessage('No open ports detected', 'info');
-        }
-        this.logMessage('=== End Device Details ===', 'info');
+        // Create detailed content
+        const deviceType = this.getDeviceType(device);
+        const deviceIcon = this.getDeviceIcon(deviceType);
+
+        content.innerHTML = `
+            <div class="device-overview">
+                <div class="device-icon">
+                    <i class="fas ${deviceIcon}"></i>
+                </div>
+                <div class="device-basic-info">
+                    <div class="info-row">
+                        <span class="label">IP Address:</span>
+                        <span class="value">${device.ip}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">MAC Address:</span>
+                        <span class="value">${device.mac}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Vendor:</span>
+                        <span class="value">${device.vendor}</span>
+                    </div>
+                    ${device.hostname && device.hostname !== 'Unknown' ?
+                        `<div class="info-row">
+                            <span class="label">Hostname:</span>
+                            <span class="value">${device.hostname}</span>
+                        </div>` : ''}
+                    <div class="info-row">
+                        <span class="label">Device Type:</span>
+                        <span class="value">${deviceType.charAt(0).toUpperCase() + deviceType.slice(1)}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Status:</span>
+                        <span class="value status-${device.state}">${device.state}</span>
+                    </div>
+                    ${device.os_info && device.os_info !== 'Unknown' ?
+                        `<div class="info-row">
+                            <span class="label">OS Info:</span>
+                            <span class="value">${device.os_info}</span>
+                        </div>` : ''}
+                </div>
+            </div>
+
+            ${device.ports && device.ports.length > 0 ? `
+                <div class="device-ports">
+                    <h4>Open Ports (${device.ports.length})</h4>
+                    <div class="ports-grid">
+                        ${device.ports.map(port => `
+                            <div class="port-item">
+                                <div class="port-number">${port.port}</div>
+                                <div class="port-service">${port.service}</div>
+                                <div class="port-state status-${port.state}">${port.state}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : `
+                <div class="no-ports">
+                    <i class="fas fa-info-circle"></i>
+                    <p>No open ports detected</p>
+                </div>
+            `}
+        `;
+
+        // Show the panel with animation
+        panel.classList.add('active');
+
+        // Add close button event listener
+        document.getElementById('close-details-btn').onclick = () => {
+            this.hideDeviceDetailsPanel();
+        };
+
+        // Close on outside click
+        panel.onclick = (e) => {
+            if (e.target === panel) {
+                this.hideDeviceDetailsPanel();
+            }
+        };
+    }
+
+    hideDeviceDetailsPanel() {
+        const panel = document.getElementById('device-details-panel');
+        panel.classList.remove('active');
     }
 
     getDetailedDeviceInfo(device) {
@@ -207,10 +275,26 @@ class WireInterpreter {
             return;
         }
 
+        // Stop any existing status polling
+        if (this.scanInterval) {
+            clearInterval(this.scanInterval);
+            this.scanInterval = null;
+        }
+
+        // Clear the log output and reset state
+        const logOutput = document.getElementById('log-output');
+        logOutput.textContent = '';
+
+        // Clear the network graph
+        if (this.network) {
+            this.network.setData({ nodes: [], edges: [] });
+        }
+
         // Reset graph initialization for new scan
         this.graphInitialized = false;
         this.lastLogContent = '';
         this.lastScanStatus = null;
+        this.devices = [];
 
         // Build NMAP options
         let options = scanType;

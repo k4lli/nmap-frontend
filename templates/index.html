@@ -70,6 +70,17 @@
             <h2>Scan Log</h2>
             <div id="log-output" class="log-output"></div>
         </div>
+
+        <!-- Device Details Panel -->
+        <div class="device-details-panel" id="device-details-panel">
+            <div class="device-details-header">
+                <h3 id="device-details-title">Device Details</h3>
+                <button class="close-details-btn" id="close-details-btn">×</button>
+            </div>
+            <div class="device-details-content" id="device-details-content">
+                <!-- Device details will be populated here -->
+            </div>
+        </div>
     </div>
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
