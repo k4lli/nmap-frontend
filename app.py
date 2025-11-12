@@ -12,9 +12,14 @@ import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
 
-# Load API key
-with open('my.maclookup.app.key', 'r') as f:
-    MACLOOKUP_API_KEY = f.read().strip()
+# Load API key (optional)
+MACLOOKUP_API_KEY = None
+try:
+    with open('my.maclookup.app.key', 'r') as f:
+        MACLOOKUP_API_KEY = f.read().strip()
+except FileNotFoundError:
+    print("Warning: my.maclookup.app.key not found. External MAC lookup will be limited.")
+    MACLOOKUP_API_KEY = None
 
 app = Flask(__name__)
 CORS(app)
@@ -434,6 +439,15 @@ def load_scan():
         return jsonify({'devices': devices})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
+
+@app.route('/api/status')
+def get_app_status():
+    """Check application status including API key availability"""
+    api_key_exists = os.path.exists('my.maclookup.app.key')
+    return jsonify({
+        'api_key_exists': api_key_exists,
+        'database_ready': True  # We'll assume DB is ready if app starts
+    })
 
 with app.app_context():
     db.create_all()

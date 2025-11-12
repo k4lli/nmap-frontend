@@ -1041,6 +1041,164 @@ body::before {
     }
 }
 
+/* API Key Alert Banner */
+.api-key-alert {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(135deg,
+        rgba(255, 0, 68, 0.95) 0%,
+        rgba(255, 68, 0, 0.95) 50%,
+        rgba(255, 0, 68, 0.95) 100%);
+    border-bottom: 2px solid var(--cyber-red);
+    box-shadow: 0 4px 20px rgba(255, 0, 68, 0.4);
+    backdrop-filter: blur(10px);
+    z-index: 10000;
+    animation: alertSlideDown 0.5s ease-out;
+}
+
+.alert-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    padding: 15px 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+    position: relative;
+}
+
+.alert-icon {
+    font-size: 24px;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.alert-text {
+    flex: 1;
+    color: white;
+}
+
+.alert-text strong {
+    display: block;
+    font-size: 16px;
+    margin-bottom: 8px;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+.alert-text p {
+    margin: 8px 0;
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+.alert-instructions {
+    margin-top: 15px;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    border-left: 3px solid rgba(255, 255, 255, 0.5);
+}
+
+.alert-instructions strong {
+    color: #ffffff;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.alert-instructions ol {
+    margin: 8px 0 0 0;
+    padding-left: 20px;
+}
+
+.alert-instructions li {
+    margin: 4px 0;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.alert-instructions code {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Fira Code', monospace;
+    font-size: 12px;
+}
+
+.alert-instructions a {
+    color: #00ffff;
+    text-decoration: underline;
+}
+
+.alert-instructions a:hover {
+    color: #00aaaa;
+}
+
+.alert-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+}
+
+.alert-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: rotate(90deg);
+}
+
+@keyframes alertSlideDown {
+    0% {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    100% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Adjust container when alert is visible */
+.api-key-alert ~ .container {
+    padding-top: 20px;
+}
+
+/* Responsive Design for API Key Alert */
+@media (max-width: 768px) {
+    .alert-content {
+        flex-direction: column;
+        gap: 10px;
+        padding: 12px 15px;
+    }
+
+    .alert-icon {
+        align-self: flex-start;
+    }
+
+    .alert-close {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+    }
+
+    .alert-instructions {
+        padding: 10px;
+    }
+
+    .alert-instructions ol {
+        padding-left: 15px;
+    }
+}
+
 /* Responsive Design for Log Viewer */
 @media (max-width: 768px) {
     .log-viewer-panel {

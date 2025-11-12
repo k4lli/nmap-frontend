@@ -12,6 +12,28 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
 </head>
 <body>
+    <!-- API Key Alert Banner -->
+    <div id="api-key-alert" class="api-key-alert" style="display: none;">
+        <div class="alert-content">
+            <div class="alert-icon">⚠️</div>
+            <div class="alert-text">
+                <strong>MAC Address API Key Missing</strong>
+                <p>The application cannot perform enhanced MAC address lookups without an API key.</p>
+                <div class="alert-instructions">
+                    <strong>To fix this:</strong>
+                    <ol>
+                        <li>Visit <a href="https://maclookup.app/" target="_blank">maclookup.app</a> and create a free account</li>
+                        <li>Get your API key from the dashboard</li>
+                        <li>Create a file named <code>my.maclookup.app.key</code> in the project root directory</li>
+                        <li>Add your API key (just the key, no quotes) to the file</li>
+                        <li>Refresh this page</li>
+                    </ol>
+                </div>
+            </div>
+            <button class="alert-close" onclick="hideApiKeyAlert()">×</button>
+        </div>
+    </div>
+
     <div class="container">
         <!-- Configuration Panel -->
         <div class="panel config-panel" id="config-panel">

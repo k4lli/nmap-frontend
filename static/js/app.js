@@ -13,6 +13,7 @@ class WireInterpreter {
     init() {
         this.bindEvents();
         this.initializeGraph();
+        this.checkApiKeyStatus();
     }
 
     bindEvents() {
@@ -833,6 +834,33 @@ class WireInterpreter {
         };
     }
 
+    async checkApiKeyStatus() {
+        try {
+            const response = await fetch('/api/status');
+            const status = await response.json();
+
+            if (!status.api_key_exists) {
+                this.showApiKeyAlert();
+            } else {
+                this.hideApiKeyAlert();
+            }
+        } catch (error) {
+            console.error('Failed to check API key status:', error);
+            // Show alert on error to be safe
+            this.showApiKeyAlert();
+        }
+    }
+
+    showApiKeyAlert() {
+        const alert = document.getElementById('api-key-alert');
+        alert.style.display = 'block';
+    }
+
+    hideApiKeyAlert() {
+        const alert = document.getElementById('api-key-alert');
+        alert.style.display = 'none';
+    }
+
     logMessage(message, type = 'info') {
         const logOutput = document.getElementById('log-output');
         const timestamp = new Date().toLocaleTimeString();
@@ -851,6 +879,14 @@ class WireInterpreter {
             logOutput.innerHTML = lines.slice(0, -1).join('\n') + '\n' +
                 `<span class="status-success">${lastLine}</span>`;
         }
+    }
+}
+
+// Global function for hiding API key alert (called from HTML)
+function hideApiKeyAlert() {
+    const alert = document.getElementById('api-key-alert');
+    if (alert) {
+        alert.style.display = 'none';
     }
 }
 
