@@ -57,11 +57,16 @@
                 </div>
             </div>
             <button id="scan-button" class="scan-button">Start Scan</button>
+            <button id="load-scan-btn" class="load-scan-btn">📁 Load Scan</button>
+            <input type="file" id="load-scan-file" accept=".json" style="display: none">
         </div>
 
         <!-- Network Graph Panel -->
         <div class="panel graph-panel" id="graph-panel">
-            <h2>Network Topology</h2>
+            <div class="panel-header">
+                <h2>Network Topology</h2>
+                <button id="save-scan-btn" class="save-scan-btn">💾 Save Scan</button>
+            </div>
             <div id="network-graph"></div>
         </div>
 

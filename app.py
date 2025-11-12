@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
+from flask_sqlalchemy import SQLAlchemy
 import nmap
 import socket
 import json
@@ -7,9 +8,90 @@ import subprocess
 import threading
 import time
 import os
+import requests
+from bs4 import BeautifulSoup
+from datetime import datetime
+
+# Load API key
+with open('my.maclookup.app.key', 'r') as f:
+    MACLOOKUP_API_KEY = f.read().strip()
 
 app = Flask(__name__)
 CORS(app)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///nmap_frontend.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
+
+# Database models
+class Vendor(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    logo_url = db.Column(db.String(500))
+
+class OidCache(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    mac_prefix = db.Column(db.String(20), unique=True, nullable=False)
+    vendor_name = db.Column(db.String(100), nullable=False)
+
+# Vendor to domain mapping for logo fetching
+vendor_domains = {
+    "ASUSTek Computer": "asus.com",
+    "Apple": "apple.com",
+    "Google": "google.com",
+    "TP-Link": "tp-link.com",
+    "Netgear": "netgear.com",
+    "D-Link": "dlink.com",
+    "Linksys": "linksys.com",
+    "Microsoft": "microsoft.com",
+    "Samsung": "samsung.com",
+    "Huawei": "huawei.com",
+    "Xiaomi": "xiaomi.com",
+    "OnePlus": "oneplus.com",
+    "Sony": "sony.com",
+    "LG": "lg.com",
+    "Panasonic": "panasonic.com",
+    "Philips": "philips.com",
+    "Roku": "roku.com",
+    "Amazon": "amazon.com",
+    "Nest": "nest.com",
+    "Chromecast": "google.com",
+}
+
+def get_vendor_logo(vendor_name):
+    if vendor_name in vendor_domains:
+        domain = vendor_domains[vendor_name]
+    else:
+        # Auto-generate domain from first word
+        first_word = vendor_name.split()[0].lower()
+        domain = f"{first_word}.com"
+    return f"https://logo.clearbit.com/{domain}"
+
+def lookup_mac_vendor(mac):
+    """Fallback MAC vendor lookup by scraping maclookup.app"""
+    try:
+        url = f"https://maclookup.app/search/result?mac={mac}"
+        print(f"DEBUG: Scraping URL: {url}")
+        response = requests.get(url, timeout=5)
+        print(f"DEBUG: Response status: {response.status_code}")
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, 'html.parser')
+            # Find the vendor name
+            # Looking for text after "Vendor name:"
+            text = soup.get_text()
+            print(f"DEBUG: Page text snippet: {text[:500]}")
+            if "Vendor name:" in text:
+                vendor_start = text.find("Vendor name:") + len("Vendor name:")
+                vendor_end = text.find("\n", vendor_start)
+                vendor = text[vendor_start:vendor_end].strip()
+                print(f"DEBUG: Extracted vendor: '{vendor}'")
+                if vendor and vendor != "Unknown":
+                    return vendor
+        else:
+            print(f"DEBUG: HTTP error: {response.status_code}")
+    except Exception as e:
+        print(f"Error looking up MAC {mac}: {e}")
+    return 'Unknown'
 
 # Global variables for scan status
 scan_output = []
@@ -38,48 +120,112 @@ def get_device_info_from_oid(host):
         'vendor': 'Unknown',
         'device_type': 'Unknown',
         'os_info': 'Unknown',
-        'identified': False
+        'identified': False,
+        'logo_url': None
     }
 
-    try:
-        # Get MAC address vendor from NMAP
-        if 'addresses' in host and 'mac' in host['addresses']:
-            mac = host['addresses']['mac']
-            # NMAP provides vendor information directly
-            if 'vendor' in host:
-                device_info['vendor'] = host['vendor'].get(mac, 'Unknown')
+    with app.app_context():
+        try:
+            mac = 'Unknown'
+            # Get MAC address
+            if 'addresses' in host and 'mac' in host['addresses']:
+                mac = host['addresses']['mac']
+                print(f"DEBUG: Retrieved MAC: {mac}")
+            else:
+                print("DEBUG: No MAC address found in host data")
+
+            # Check OID cache first
+            if mac != 'Unknown':
+                prefix = mac[:8]  # e.g., 3C:7C:3F
+                cached = OidCache.query.filter_by(mac_prefix=prefix).first()
+                if cached:
+                    device_info['vendor'] = cached.vendor_name
+                    device_info['identified'] = True
+                    print(f"DEBUG: Found vendor in cache: {cached.vendor_name}")
+                else:
+                    print(f"DEBUG: MAC prefix {prefix} not in cache")
+                    # Get vendor from NMAP
+                    if 'vendor' in host:
+                        vendor = host['vendor'].get(mac, 'Unknown')
+                        print(f"DEBUG: NMAP vendor data: {vendor}")
+                        if vendor != 'Unknown':
+                            device_info['vendor'] = vendor
+                            device_info['identified'] = True
+                            # Cache it
+                            try:
+                                db.session.add(OidCache(mac_prefix=prefix, vendor_name=vendor))
+                                db.session.commit()
+                                print(f"DEBUG: Cached NMAP vendor: {vendor}")
+                            except Exception as e:
+                                db.session.rollback()
+                                print(f"Error caching OID: {e}")
+
+                    # Fallback to external API if still unknown
+                    if device_info['vendor'] == 'Unknown':
+                        print(f"DEBUG: Calling external API for MAC: {mac}")
+                        vendor = lookup_mac_vendor(mac)
+                        print(f"DEBUG: External API returned: {vendor}")
+                        if vendor != 'Unknown':
+                            device_info['vendor'] = vendor
+                            device_info['identified'] = True
+                            # Cache it
+                            try:
+                                db.session.add(OidCache(mac_prefix=prefix, vendor_name=vendor))
+                                db.session.commit()
+                                print(f"DEBUG: Cached external vendor: {vendor}")
+                            except Exception as e:
+                                db.session.rollback()
+                                print(f"Error caching external OID: {e}")
+
+            # Get logo for vendor
+            if device_info['vendor'] != 'Unknown':
+                vendor_obj = Vendor.query.filter_by(name=device_info['vendor']).first()
+                if vendor_obj and vendor_obj.logo_url:
+                    device_info['logo_url'] = vendor_obj.logo_url
+                else:
+                    logo = get_vendor_logo(device_info['vendor'])
+                    if logo:
+                        try:
+                            if not vendor_obj:
+                                db.session.add(Vendor(name=device_info['vendor'], logo_url=logo))
+                            else:
+                                vendor_obj.logo_url = logo
+                            db.session.commit()
+                            device_info['logo_url'] = logo
+                        except Exception as e:
+                            db.session.rollback()
+                            print(f"Error caching logo: {e}")
+
+            # Get OS information if available
+            if 'osmatch' in host and host['osmatch']:
+                best_match = host['osmatch'][0]  # Best OS match
+                device_info['os_info'] = best_match.get('name', 'Unknown')
                 device_info['identified'] = True
 
-        # Get OS information if available
-        if 'osmatch' in host and host['osmatch']:
-            best_match = host['osmatch'][0]  # Best OS match
-            device_info['os_info'] = best_match.get('name', 'Unknown')
-            device_info['identified'] = True
+            # Determine device type from OS info and other data
+            os_name = device_info['os_info'].lower()
+            hostname = host.hostname() if callable(host.hostname) else (host.get('hostname', '') if isinstance(host, dict) else '')
 
-        # Determine device type from OS info and other data
-        os_name = device_info['os_info'].lower()
-        hostname = host.hostname() if callable(host.hostname) else (host.get('hostname', '') if isinstance(host, dict) else '')
-
-        if 'linux' in os_name:
-            if 'android' in os_name or 'iphone' in hostname.lower():
+            if 'linux' in os_name:
+                if 'android' in os_name or 'iphone' in hostname.lower():
+                    device_info['device_type'] = 'mobile'
+                elif 'server' in os_name or any(port.get('name', '') in ['ssh', 'http', 'https'] for port in host.get('tcp', {}).values() if port.get('state') == 'open'):
+                    device_info['device_type'] = 'server'
+                else:
+                    device_info['device_type'] = 'computer'
+            elif 'windows' in os_name:
+                device_info['device_type'] = 'computer'
+            elif 'mac os' in os_name or 'ios' in os_name:
                 device_info['device_type'] = 'mobile'
-            elif 'server' in os_name or any(port.get('name', '') in ['ssh', 'http', 'https'] for port in host.get('tcp', {}).values() if port.get('state') == 'open'):
-                device_info['device_type'] = 'server'
+            elif 'router' in os_name or 'switch' in os_name:
+                device_info['device_type'] = 'router'
+            elif 'roku' in hostname.lower() or 'tivo' in hostname.lower():
+                device_info['device_type'] = 'iot'
             else:
                 device_info['device_type'] = 'computer'
-        elif 'windows' in os_name:
-            device_info['device_type'] = 'computer'
-        elif 'mac os' in os_name or 'ios' in os_name:
-            device_info['device_type'] = 'mobile'
-        elif 'router' in os_name or 'switch' in os_name:
-            device_info['device_type'] = 'router'
-        elif 'roku' in hostname.lower() or 'tivo' in hostname.lower():
-            device_info['device_type'] = 'iot'
-        else:
-            device_info['device_type'] = 'computer'
 
-    except Exception as e:
-        print(f"Error extracting device info: {e}")
+        except Exception as e:
+            print(f"Error extracting device info: {e}")
 
     return device_info
 
@@ -136,6 +282,7 @@ def run_nmap_scan(target, options, thorough=False):
                     'device_type': device_info['device_type'],
                     'os_info': device_info['os_info'],
                     'identified': device_info['identified'],
+                    'logo_url': device_info.get('logo_url'),
                     'ports': []
                 }
 
@@ -259,6 +406,37 @@ def get_devices():
 def get_full_log():
     global scan_output
     return jsonify({'log': scan_output})
+
+@app.route('/api/save_scan')
+def save_scan():
+    global last_scan_devices
+    if not last_scan_devices:
+        return jsonify({'error': 'No scan data available'}), 400
+
+    data = {
+        'timestamp': datetime.now().isoformat(),
+        'devices': last_scan_devices
+    }
+    return jsonify(data)
+
+@app.route('/api/load_scan', methods=['POST'])
+def load_scan():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+
+    try:
+        data = json.load(file)
+        devices = data.get('devices', [])
+        return jsonify({'devices': devices})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+with app.app_context():
+    db.create_all()
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

@@ -23,9 +23,13 @@ class WireInterpreter {
         const additionalOptions = document.getElementById('additional-options');
         const thoroughScanCheckbox = document.getElementById('thorough-scan');
         const logPanel = document.getElementById('log-panel');
+        const saveScanBtn = document.getElementById('save-scan-btn');
+        const loadScanBtn = document.getElementById('load-scan-btn');
 
         scanButton.addEventListener('click', () => this.startScan());
         logPanel.addEventListener('click', () => this.showLogViewer());
+        saveScanBtn.addEventListener('click', () => this.saveScan());
+        loadScanBtn.addEventListener('click', () => this.loadScan());
 
         // Auto-populate target on load
         this.loadNetworkInfo().then(network => {
@@ -175,7 +179,7 @@ class WireInterpreter {
         content.innerHTML = `
             <div class="device-overview">
                 <div class="device-icon">
-                    <i class="fas ${deviceIcon}"></i>
+                    ${device.logo_url ? `<img src="${device.logo_url}" alt="${device.vendor} logo" class="vendor-logo-large">` : `<i class="fas ${deviceIcon}"></i>`}
                 </div>
                 <div class="device-basic-info">
                     <div class="info-row">
@@ -671,11 +675,10 @@ class WireInterpreter {
         const backgroundColor = isIdentified ? '#0a0a0a' : '#333333';
         const fontColor = isIdentified ? '#00ffff' : '#cccccc';
 
-        return {
+        const node = {
             id: device.ip,
             label: this.getDeviceLabel(device),
             title: this.getDeviceTooltip(device),
-            shape: shape,
             color: {
                 background: backgroundColor,
                 border: borderColor
@@ -685,14 +688,24 @@ class WireInterpreter {
                 size: 11,
                 align: 'center'
             },
-            level: level,
-            icon: icon ? {
+            level: level
+        };
+
+        if (device.logo_url) {
+            node.shape = 'image';
+            node.image = device.logo_url;
+            node.size = 30;
+        } else {
+            node.shape = shape;
+            node.icon = icon ? {
                 face: 'FontAwesome',
                 code: icon,
                 size: 16,
                 color: fontColor
-            } : undefined
-        };
+            } : undefined;
+        }
+
+        return node;
     }
 
     getDeviceType(device) {
@@ -768,6 +781,56 @@ class WireInterpreter {
         }
         tooltip += `</div>`;
         return tooltip;
+    }
+
+    async saveScan() {
+        try {
+            const response = await fetch('/api/save_scan');
+            if (response.ok) {
+                const data = await response.json();
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `nmap-scan-${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                this.logMessage('Scan data saved successfully', 'success');
+            } else {
+                this.logMessage('Failed to save scan data', 'error');
+            }
+        } catch (error) {
+            this.logMessage(`Error saving scan: ${error.message}`, 'error');
+        }
+    }
+
+    async loadScan() {
+        const fileInput = document.getElementById('load-scan-file');
+        fileInput.click();
+        fileInput.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const formData = new FormData();
+                formData.append('file', file);
+                try {
+                    const response = await fetch('/api/load_scan', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.devices = data.devices || [];
+                        this.updateNetworkGraph();
+                        this.logMessage('Scan data loaded successfully', 'success');
+                    } else {
+                        const error = await response.json();
+                        this.logMessage(`Failed to load scan: ${error.error}`, 'error');
+                    }
+                } catch (error) {
+                    this.logMessage(`Error loading scan: ${error.message}`, 'error');
+                }
+            }
+        };
     }
 
     logMessage(message, type = 'info') {

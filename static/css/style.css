@@ -121,6 +121,45 @@ body::before {
         transparent 100%);
 }
 
+/* Panel Header for buttons */
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.panel-header h2 {
+    margin: 0;
+}
+
+/* Save and Load buttons */
+.save-scan-btn, .load-scan-btn {
+    background: linear-gradient(135deg,
+        rgba(0, 255, 255, 0.2) 0%,
+        rgba(0, 255, 255, 0.1) 100%);
+    border: 1px solid var(--cyber-cyan);
+    border-radius: 8px;
+    color: var(--cyber-cyan);
+    padding: 8px 12px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: var(--glow-minimal);
+}
+
+.save-scan-btn:hover, .load-scan-btn:hover {
+    background: linear-gradient(135deg,
+        rgba(0, 255, 255, 0.3) 0%,
+        rgba(0, 255, 255, 0.2) 100%);
+    box-shadow: var(--glow-subtle);
+    transform: translateY(-1px);
+}
+
 /* Configuration Panel */
 .config-panel {
     grid-column: 1;
@@ -617,6 +656,15 @@ body::before {
 .device-icon i {
     font-size: 24px;
     color: var(--cyber-cyan);
+}
+
+.vendor-logo-large {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    object-fit: contain;
+    border: 2px solid var(--cyber-cyan);
+    box-shadow: var(--glow-subtle);
 }
 
 @keyframes iconPulse {
