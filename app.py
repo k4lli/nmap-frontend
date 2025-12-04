@@ -11,6 +11,8 @@ import os
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
+import platform
+import netifaces
 
 # Load API key (optional)
 MACLOOKUP_API_KEY = None
@@ -102,6 +104,49 @@ def lookup_mac_vendor(mac):
 scan_output = []
 scan_in_progress = False
 last_scan_devices = []
+
+def get_default_gateway():
+    """Get the default gateway IP address using netifaces"""
+    try:
+        gateways = netifaces.gateways()
+        if 'default' in gateways and netifaces.AF_INET in gateways['default']:
+            gateway_ip, interface = gateways['default'][netifaces.AF_INET]
+            print(f"DEBUG: Default gateway detected: {gateway_ip} via {interface}")
+            return gateway_ip
+    except Exception as e:
+        print(f"Error getting default gateway with netifaces: {e}")
+        # Fallback to system commands
+        try:
+            if platform.system() == 'Darwin':  # macOS
+                result = subprocess.run(['route', 'get', 'default'], capture_output=True, text=True, timeout=5)
+                if result.returncode == 0:
+                    for line in result.stdout.split('\n'):
+                        if 'gateway:' in line:
+                            gateway = line.split('gateway:')[1].strip()
+                            if gateway and gateway != 'default':
+                                # Resolve hostname to IP if needed
+                                try:
+                                    return socket.gethostbyname(gateway)
+                                except:
+                                    return gateway
+            elif platform.system() == 'Linux':
+                result = subprocess.run(['ip', 'route', 'show', 'default'], capture_output=True, text=True, timeout=5)
+                if result.returncode == 0:
+                    parts = result.stdout.strip().split()
+                    if len(parts) >= 3:
+                        return parts[2]  # gateway IP
+            elif platform.system() == 'Windows':
+                result = subprocess.run(['route', 'print', '0.0.0.0'], capture_output=True, text=True, timeout=5)
+                if result.returncode == 0:
+                    lines = result.stdout.split('\n')
+                    for line in lines:
+                        if '0.0.0.0' in line and 'On-link' not in line:
+                            parts = line.split()
+                            if len(parts) >= 4:
+                                return parts[2]  # gateway IP
+        except Exception as e2:
+            print(f"Error getting default gateway with fallback: {e2}")
+    return None
 
 def get_local_network():
     """Get local network IP and subnet"""
@@ -313,6 +358,37 @@ def run_nmap_scan(target, options, thorough=False):
 
         scan_output.append(f"Discovery complete: {len(devices)} devices found")
 
+        # Identify gateway device and classify as router
+        gateway_ip = get_default_gateway()
+        if gateway_ip:
+            for device in devices:
+                if device['ip'] == gateway_ip:
+                    device['device_type'] = 'router'
+                    scan_output.append(f"✓ Identified gateway router: {gateway_ip}")
+                    break
+        else:
+            scan_output.append("⚠️ Could not determine default gateway")
+
+        # Add tags to devices
+        for device in devices:
+            tags = [device['device_type']]
+            if device['vendor'] != 'Unknown':
+                tags.append(device['vendor'].lower().replace(' ', '-'))
+            os_lower = device['os_info'].lower()
+            if 'linux' in os_lower:
+                tags.append('linux')
+            elif 'windows' in os_lower:
+                tags.append('windows')
+            elif 'mac os' in os_lower or 'macos' in os_lower:
+                tags.append('macos')
+            elif 'android' in os_lower:
+                tags.append('android')
+            if any(p['port'] in [80, 443] for p in device['ports']):
+                tags.append('web-server')
+            if any(p['port'] == 22 for p in device['ports']):
+                tags.append('ssh-server')
+            device['tags'] = tags
+
         # If thorough scanning is enabled and we have identified devices, run detailed scans
         if thorough and identified_devices:
             scan_output.append(f"Running thorough scans on {len(identified_devices)} identified devices...")
@@ -436,7 +512,83 @@ def load_scan():
     try:
         data = json.load(file)
         devices = data.get('devices', [])
-        return jsonify({'devices': devices})
+
+        # Enhance loaded devices with logos, tags, and topology info if missing
+        enhanced_devices = []
+        scan_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Loading scan with {len(devices)} devices")
+
+        # Check for gateway router in loaded data, add if missing
+        gateway_ip = get_default_gateway()
+        has_gateway_router = any(d.get('device_type') == 'router' and d['ip'] == gateway_ip for d in devices)
+        if gateway_ip and not has_gateway_router:
+            for device in devices:
+                if device['ip'] == gateway_ip:
+                    device['device_type'] = 'router'
+                    scan_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] ✓ Updated gateway device type to router: {gateway_ip}")
+                    break
+
+        for device in devices:
+            # Generate tags if missing
+            if not device.get('tags'):
+                tags = [device.get('device_type', 'unknown')]
+                if device.get('vendor') and device['vendor'] != 'Unknown':
+                    tags.append(device['vendor'].lower().replace(' ', '-'))
+                os_lower = device.get('os_info', '').lower()
+                if 'linux' in os_lower:
+                    tags.append('linux')
+                elif 'windows' in os_lower:
+                    tags.append('windows')
+                elif 'mac os' in os_lower or 'macos' in os_lower:
+                    tags.append('macos')
+                elif 'android' in os_lower:
+                    tags.append('android')
+                ports = device.get('ports', [])
+                if any(p.get('port') in [80, 443] for p in ports):
+                    tags.append('web-server')
+                if any(p.get('port') == 22 for p in ports):
+                    tags.append('ssh-server')
+                device['tags'] = tags
+                scan_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] ✓ Generated tags for {device['ip']}: {tags}")
+
+            # Check if logo is missing and vendor is known
+            if (not device.get('logo_url') or device.get('logo_url') is None) and device.get('vendor') and device['vendor'] != 'Unknown':
+                scan_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Fetching logo for {device['vendor']} ({device['ip']})")
+
+                # Try to fetch logo for this vendor
+                with app.app_context():
+                    try:
+                        # Check if logo exists in database
+                        vendor_obj = Vendor.query.filter_by(name=device['vendor']).first()
+                        if vendor_obj and vendor_obj.logo_url:
+                            device['logo_url'] = vendor_obj.logo_url
+                            scan_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] ✓ Logo found in cache: {device['vendor']}")
+                        else:
+                            # Fetch new logo
+                            logo_url = get_vendor_logo(device['vendor'])
+                            if logo_url:
+                                # Cache the logo
+                                if not vendor_obj:
+                                    db.session.add(Vendor(name=device['vendor'], logo_url=logo_url))
+                                else:
+                                    vendor_obj.logo_url = logo_url
+                                db.session.commit()
+                                device['logo_url'] = logo_url
+                                scan_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] ✓ Logo fetched and cached: {device['vendor']} -> {logo_url}")
+                            else:
+                                scan_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] ✗ Failed to fetch logo for: {device['vendor']}")
+                    except Exception as e:
+                        scan_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] ✗ Error fetching logo for {device['vendor']}: {str(e)}")
+                        db.session.rollback()
+            elif device.get('logo_url'):
+                scan_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] ✓ Logo already present for {device['vendor']} ({device['ip']})")
+            else:
+                scan_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] ○ Skipping logo fetch for {device.get('ip', 'unknown')} (no vendor)")
+
+            enhanced_devices.append(device)
+
+        scan_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Scan loading complete - {len(enhanced_devices)} devices enhanced")
+
+        return jsonify({'devices': enhanced_devices})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 

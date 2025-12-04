@@ -185,10 +185,10 @@ git clone https://github.com/k4lli/nmap-frontend.git
 cd nmap-frontend
 
 # Build the Docker image
-docker build -t wire-interpreter .
+docker build -t nmap-frontend .
 
 # Run the container
-docker run -p 5000:5000 wire-interpreter
+docker run -p 5000:5000 nmap-frontend
 ```
 
 ### Advanced Docker Usage
@@ -196,13 +196,13 @@ docker run -p 5000:5000 wire-interpreter
 #### Custom Build
 ```bash
 # Build with specific Python version
-docker build --build-arg PYTHON_VERSION=3.11 -t wire-interpreter .
+docker build --build-arg PYTHON_VERSION=3.11 -t nmap-frontend .
 
 # Run with custom port
-docker run -p 8080:5000 wire-interpreter
+docker run -p 8080:5000 nmap-frontend
 
 # Run in background
-docker run -d -p 5000:5000 --name wire-scanner wire-interpreter
+docker run -d -p 5000:5000 --name wire-scanner nmap-frontend
 ```
 
 #### Docker Compose (Recommended for Production)
@@ -210,7 +210,7 @@ docker run -d -p 5000:5000 --name wire-scanner wire-interpreter
 # Create docker-compose.yml
 version: '3.8'
 services:
-  wire-interpreter:
+  nmap-frontend:
     build: .
     ports:
       - "5000:5000"
@@ -241,13 +241,13 @@ docker-compose down
 ### Docker Troubleshooting
 ```bash
 # Check container logs
-docker logs wire-interpreter
+docker logs nmap-frontend
 
 # Access container shell
-docker exec -it wire-interpreter /bin/bash
+docker exec -it nmap-frontend /bin/bash
 
 # Rebuild without cache
-docker build --no-cache -t wire-interpreter .
+docker build --no-cache -t nmap-frontend .
 ```
 
 ## 🔧 Configuration & Troubleshooting
