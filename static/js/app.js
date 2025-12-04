@@ -345,11 +345,11 @@ class WireInterpreter {
             `;
         }
 
-        // Add script output (banner grabbing results) if available
+        // Add script output (NMAP banner grabbing results) if available
         if (port.scripts && Object.keys(port.scripts).length > 0) {
             serviceContent += `
                 <div class="service-scripts">
-                    <h4>Script Output (Banner Information)</h4>
+                    <h4>NMAP Script Output</h4>
                     <div class="scripts-content">
             `;
 
@@ -363,6 +363,21 @@ class WireInterpreter {
             }
 
             serviceContent += `
+                    </div>
+                </div>
+            `;
+        }
+
+        // Add manual banner if available
+        if (port.manual_banner) {
+            serviceContent += `
+                <div class="service-scripts">
+                    <h4>Manual Banner Grab</h4>
+                    <div class="scripts-content">
+                        <div class="script-item">
+                            <h5>Raw Banner Response</h5>
+                            <pre class="script-output">${port.manual_banner}</pre>
+                        </div>
                     </div>
                 </div>
             `;

@@ -105,6 +105,143 @@ scan_output = []
 scan_in_progress = False
 last_scan_devices = []
 
+def get_timing_config(timing_option):
+    """Get banner grabbing timing configuration based on NMAP timing template"""
+    timing_configs = {
+        '-T0': {'timeout': 10.0, 'delay': 5.0, 'name': 'Paranoid'},
+        '-T1': {'timeout': 8.0, 'delay': 3.0, 'name': 'Sneaky'},
+        '-T2': {'timeout': 6.0, 'delay': 2.0, 'name': 'Polite'},
+        '-T3': {'timeout': 4.0, 'delay': 1.0, 'name': 'Normal'},
+        '-T4': {'timeout': 3.0, 'delay': 0.5, 'name': 'Aggressive'},
+        '-T5': {'timeout': 2.0, 'delay': 0.2, 'name': 'Insane'}
+    }
+
+    # Default to normal timing if not specified
+    return timing_configs.get(timing_option, timing_configs['-T3'])
+
+def grab_service_banner(ip, port, service_name, timing_config):
+    """Grab banner from open port if NMAP didn't provide comprehensive data"""
+    timeout = timing_config['timeout']
+
+    try:
+        # Create socket with timeout
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+
+        # Connect to the port
+        sock.connect((ip, port))
+
+        service_lower = service_name.lower()
+
+        if service_lower in ['http', 'https', 'http-alt']:
+            # HTTP banner grabbing
+            request = f"GET / HTTP/1.0\r\nHost: {ip}\r\nUser-Agent: WireInterpreter/1.0\r\n\r\n"
+            sock.send(request.encode())
+            banner = sock.recv(4096).decode('utf-8', errors='ignore')
+
+        elif service_lower in ['ssh', 'sshv2']:
+            # SSH banner grabbing - just read initial response
+            banner = sock.recv(1024).decode('utf-8', errors='ignore')
+
+        elif service_lower in ['ftp', 'ftp-data']:
+            # FTP banner grabbing - welcome message
+            banner = sock.recv(1024).decode('utf-8', errors='ignore')
+
+        elif service_lower in ['smtp', 'smtps']:
+            # SMTP banner grabbing
+            banner = sock.recv(512).decode('utf-8', errors='ignore')
+            # Send EHLO to get more info
+            sock.send(b"EHLO wireinterpreter.local\r\n")
+            ehlo_response = sock.recv(512).decode('utf-8', errors='ignore')
+            banner += ehlo_response
+
+        elif service_lower in ['telnet']:
+            # Telnet banner grabbing
+            banner = sock.recv(1024).decode('utf-8', errors='ignore')
+
+        elif service_lower in ['pop3', 'pop3s']:
+            # POP3 banner grabbing
+            banner = sock.recv(512).decode('utf-8', errors='ignore')
+
+        elif service_lower in ['imap', 'imaps']:
+            # IMAP banner grabbing
+            banner = sock.recv(512).decode('utf-8', errors='ignore')
+
+        else:
+            # Generic TCP banner grabbing - read first chunk
+            banner = sock.recv(1024).decode('utf-8', errors='ignore')
+
+        sock.close()
+
+        # Clean up the banner (remove null bytes, clean whitespace)
+        banner = banner.replace('\x00', '').strip()
+        if banner:
+            return banner[:2048]  # Limit banner size
+
+    except (socket.timeout, socket.error, OSError) as e:
+        # Connection failed or timed out
+        pass
+
+    return None
+
+def perform_advanced_service_analysis(ip, port, service_name, timing_config):
+    """Perform advanced service analysis using external tools"""
+    timeout = timing_config['timeout']
+    analysis_results = {}
+
+    service_lower = service_name.lower()
+
+    try:
+        if service_lower in ['http', 'https', 'http-alt']:
+            # Use curl for detailed HTTP analysis
+            if port == 443 or service_lower == 'https':
+                cmd = ['curl', '-I', '--connect-timeout', str(int(timeout)),
+                       '--max-time', str(int(timeout)), f'https://{ip}:{port}']
+            else:
+                cmd = ['curl', '-I', '--connect-timeout', str(int(timeout)),
+                       '--max-time', str(int(timeout)), f'http://{ip}:{port}']
+
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout*2)
+            if result.returncode == 0:
+                analysis_results['http_headers'] = result.stdout
+
+            # Try SSL certificate analysis if HTTPS
+            if port == 443 or service_lower == 'https':
+                ssl_cmd = ['openssl', 's_client', '-connect', f'{ip}:{port}',
+                          '-servername', ip, '-showcerts']
+                ssl_result = subprocess.run(ssl_cmd, input='QUIT\n', capture_output=True,
+                                          text=True, timeout=timeout)
+                if ssl_result.returncode == 0:
+                    analysis_results['ssl_cert'] = ssl_result.stdout
+
+        elif service_lower in ['dns', 'domain']:
+            # DNS analysis with dig
+            dig_cmd = ['dig', '@' + ip, '-p', str(port), 'version.bind', 'txt', 'chaos']
+            dig_result = subprocess.run(dig_cmd, capture_output=True, text=True, timeout=timeout)
+            if dig_result.returncode == 0:
+                analysis_results['dns_version'] = dig_result.stdout
+
+        elif service_lower in ['smb', 'microsoft-ds', 'netbios-ssn']:
+            # SMB analysis with smbclient
+            smb_cmd = ['smbclient', '-L', f'//{ip}', '-p', str(port), '-N']
+            smb_result = subprocess.run(smb_cmd, input='\n', capture_output=True,
+                                      text=True, timeout=timeout)
+            if smb_result.returncode == 0:
+                analysis_results['smb_shares'] = smb_result.stdout
+
+        elif service_lower in ['snmp', 'snmptrap']:
+            # SNMP analysis with snmpwalk
+            snmp_cmd = ['snmpwalk', '-v', '2c', '-c', 'public', f'{ip}:{port}']
+            snmp_result = subprocess.run(snmp_cmd, capture_output=True, text=True, timeout=timeout)
+            if snmp_result.returncode == 0:
+                analysis_results['snmp_data'] = snmp_result.stdout
+
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
+        # External tool not available or failed
+        pass
+
+    return analysis_results
+
 def get_default_gateway():
     """Get the default gateway IP address using netifaces"""
     try:
@@ -287,8 +424,26 @@ def run_nmap_scan(target, options, thorough=False):
     scan_in_progress = True
     scan_output = []
 
+    # Parse timing option for banner grabbing
+    timing_option = None
+    if '-T0' in options:
+        timing_option = '-T0'
+    elif '-T1' in options:
+        timing_option = '-T1'
+    elif '-T2' in options:
+        timing_option = '-T2'
+    elif '-T3' in options:
+        timing_option = '-T3'
+    elif '-T4' in options:
+        timing_option = '-T4'
+    elif '-T5' in options:
+        timing_option = '-T5'
+
+    timing_config = get_timing_config(timing_option)
+
     try:
         scan_output.append(f"Starting NMAP scan on {target} with options: {options}")
+        scan_output.append(f"Banner grabbing timing: {timing_config['name']} (timeout: {timing_config['timeout']}s, delay: {timing_config['delay']}s)")
         time.sleep(0.5)  # Allow status update
 
         # Calculate approximate number of hosts to scan for progress
@@ -452,6 +607,41 @@ def run_nmap_scan(target, options, thorough=False):
 
                 except Exception as e:
                     scan_output.append(f"✗ Failed detailed scan for {ip}: {str(e)}")
+
+        # Perform banner grabbing on ports that don't have NMAP script data
+        scan_output.append("🔍 Performing banner grabbing on ports without NMAP script data...")
+        time.sleep(0.5)
+
+        banner_count = 0
+        total_ports = sum(len(device['ports']) for device in devices)
+
+        for device in devices:
+            for port in device['ports']:
+                # Check if NMAP already provided script/banner data
+                has_nmap_banner = bool(port.get('scripts') and any(
+                    'banner' in script_name.lower() or 'get' in script_name.lower()
+                    for script_name in port['scripts'].keys()
+                ))
+
+                # Only grab banner if NMAP didn't provide it
+                if not has_nmap_banner:
+                    scan_output.append(f"Grabbing banner for {device['ip']}:{port['port']} ({port['service']})")
+                    banner = grab_service_banner(device['ip'], port['port'], port['service'], timing_config)
+
+                    if banner:
+                        port['manual_banner'] = banner
+                        banner_count += 1
+                        scan_output.append(f"✓ Banner grabbed ({len(banner)} chars)")
+                    else:
+                        scan_output.append("○ No banner available")
+
+                    # Respect timing delays between connections
+                    time.sleep(timing_config['delay'])
+
+        if banner_count > 0:
+            scan_output.append(f"🎯 Successfully grabbed {banner_count} banners from {total_ports} ports")
+        else:
+            scan_output.append("ℹ️  No additional banners needed (NMAP provided sufficient data)")
 
         scan_output.append("🎉 Scan completed successfully!")
         last_scan_devices = devices  # Store the results
