@@ -89,12 +89,18 @@
                 <h2>Network Topology</h2>
                 <button id="save-scan-btn" class="save-scan-btn">💾 Save Scan</button>
             </div>
+            <div class="filter-panel" id="filter-panel">
+                <h3>Filter by Tags</h3>
+                <div id="tag-filters">
+                    <!-- Tag filter checkboxes will be populated here -->
+                </div>
+            </div>
             <div id="network-graph"></div>
         </div>
 
         <!-- Logging Panel -->
         <div class="panel log-panel" id="log-panel">
-            <h2>Scan Log</h2>
+            <h2>Log</h2>
             <div id="log-output" class="log-output"></div>
         </div>
 
@@ -122,6 +128,17 @@
             </div>
             <div class="log-viewer-content" id="log-viewer-content">
                 <!-- Full log content will be populated here -->
+            </div>
+        </div>
+
+        <!-- Service Details Panel -->
+        <div class="service-details-panel" id="service-details-panel">
+            <div class="service-details-header">
+                <h3 id="service-details-title">Service Details</h3>
+                <button class="close-service-btn" id="close-service-btn">×</button>
+            </div>
+            <div class="service-details-content" id="service-details-content">
+                <!-- Service details will be populated here -->
             </div>
         </div>
     </div>

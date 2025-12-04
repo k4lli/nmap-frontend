@@ -7,6 +7,7 @@ class WireInterpreter {
         this.lastLogContent = '';
         this.lastScanStatus = null;
         this.graphInitialized = false;
+        this.selectedTags = new Set();
         this.init();
     }
 
@@ -211,17 +212,26 @@ class WireInterpreter {
                     ${device.os_info && device.os_info !== 'Unknown' ?
                         `<div class="info-row">
                             <span class="label">OS Info:</span>
-                            <span class="value">${device.os_info}</span>
+                            <span class="value">${device.os_info}${device.os_accuracy ? ` (${device.os_accuracy}% accuracy)` : ''}${device.os_family && device.os_family !== 'Unknown' ? ` - ${device.os_family}` : ''}</span>
                         </div>` : ''}
                 </div>
             </div>
+
+            ${device.tags && device.tags.length > 0 ? `
+                <div class="device-tags">
+                    <h4>Tags</h4>
+                    <div class="tags-list">
+                        ${device.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                    </div>
+                </div>
+            ` : ''}
 
             ${device.ports && device.ports.length > 0 ? `
                 <div class="device-ports">
                     <h4>Open Ports (${device.ports.length})</h4>
                     <div class="ports-grid">
-                        ${device.ports.map(port => `
-                            <div class="port-item">
+                        ${device.ports.map((port, index) => `
+                            <div class="port-item clickable" onclick="window.wireInterpreter.showServiceDetails('${device.ip}', ${index})">
                                 <div class="port-number">${port.port}</div>
                                 <div class="port-service">${port.service}</div>
                                 <div class="port-state status-${port.state}">${port.state}</div>
@@ -255,6 +265,129 @@ class WireInterpreter {
 
     hideDeviceDetailsPanel() {
         const panel = document.getElementById('device-details-panel');
+        panel.classList.remove('active');
+    }
+
+    showServiceDetails(deviceIp, portIndex) {
+        const device = this.devices.find(d => d.ip === deviceIp);
+        if (!device || !device.ports || !device.ports[portIndex]) {
+            console.error('Device or port not found');
+            return;
+        }
+
+        const port = device.ports[portIndex];
+        const panel = document.getElementById('service-details-panel');
+        const title = document.getElementById('service-details-title');
+        const content = document.getElementById('service-details-content');
+
+        // Set service title
+        title.textContent = `${port.service} on port ${port.port} (${device.hostname || device.ip})`;
+
+        // Create detailed service content
+        let serviceContent = `
+            <div class="service-overview">
+                <div class="service-basic-info">
+                    <div class="info-row">
+                        <span class="label">Port:</span>
+                        <span class="value">${port.port}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Service:</span>
+                        <span class="value">${port.service}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">State:</span>
+                        <span class="value status-${port.state}">${port.state}</span>
+                    </div>
+        `;
+
+        if (port.version && port.version !== '') {
+            serviceContent += `
+                    <div class="info-row">
+                        <span class="label">Version:</span>
+                        <span class="value">${port.version}</span>
+                    </div>
+            `;
+        }
+
+        if (port.product && port.product !== '') {
+            serviceContent += `
+                    <div class="info-row">
+                        <span class="label">Product:</span>
+                        <span class="value">${port.product}</span>
+                    </div>
+            `;
+        }
+
+        if (port.extrainfo && port.extrainfo !== '') {
+            serviceContent += `
+                    <div class="info-row">
+                        <span class="label">Extra Info:</span>
+                        <span class="value">${port.extrainfo}</span>
+                    </div>
+            `;
+        }
+
+        serviceContent += `
+                </div>
+            </div>
+        `;
+
+        // Add CPE information if available
+        if (port.cpe && port.cpe.length > 0) {
+            serviceContent += `
+                <div class="service-cpe">
+                    <h4>CPE Information</h4>
+                    <div class="cpe-list">
+                        ${port.cpe.map(cpe => `<div class="cpe-item">${cpe}</div>`).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Add script output (banner grabbing results) if available
+        if (port.scripts && Object.keys(port.scripts).length > 0) {
+            serviceContent += `
+                <div class="service-scripts">
+                    <h4>Script Output (Banner Information)</h4>
+                    <div class="scripts-content">
+            `;
+
+            for (const [scriptName, scriptOutput] of Object.entries(port.scripts)) {
+                serviceContent += `
+                        <div class="script-item">
+                            <h5>${scriptName}</h5>
+                            <pre class="script-output">${scriptOutput}</pre>
+                        </div>
+                `;
+            }
+
+            serviceContent += `
+                    </div>
+                </div>
+            `;
+        }
+
+        content.innerHTML = serviceContent;
+
+        // Show the panel with animation
+        panel.classList.add('active');
+
+        // Add close button event listener
+        document.getElementById('close-service-btn').onclick = () => {
+            this.hideServiceDetailsPanel();
+        };
+
+        // Close on outside click
+        panel.onclick = (e) => {
+            if (e.target === panel) {
+                this.hideServiceDetailsPanel();
+            }
+        };
+    }
+
+    hideServiceDetailsPanel() {
+        const panel = document.getElementById('service-details-panel');
         panel.classList.remove('active');
     }
 
@@ -449,209 +582,78 @@ class WireInterpreter {
             const response = await fetch('/api/devices');
             const data = await response.json();
             this.devices = data.devices || [];
+            this.updateTagFilters();
             this.updateNetworkGraph();
         } catch (error) {
             console.error('Failed to load devices:', error);
         }
     }
 
+    updateTagFilters() {
+        const allTags = new Set();
+        this.devices.forEach(device => {
+            if (device.tags) {
+                device.tags.forEach(tag => allTags.add(tag));
+            }
+        });
+        const sortedTags = Array.from(allTags).sort();
+        const tagFilters = document.getElementById('tag-filters');
+        tagFilters.innerHTML = '';
+        sortedTags.forEach(tag => {
+            const label = document.createElement('label');
+            label.className = 'tag-filter';
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = tag;
+            checkbox.checked = this.selectedTags.has(tag);
+            checkbox.addEventListener('change', () => {
+                if (checkbox.checked) {
+                    this.selectedTags.add(tag);
+                } else {
+                    this.selectedTags.delete(tag);
+                }
+                this.updateNetworkGraph();
+            });
+            label.appendChild(checkbox);
+            label.appendChild(document.createTextNode(' ' + tag));
+            tagFilters.appendChild(label);
+        });
+    }
+
     updateNetworkGraph() {
+        // Filter devices based on selected tags
+        const filteredDevices = this.selectedTags.size > 0 ?
+            this.devices.filter(device => device.tags && device.tags.some(tag => this.selectedTags.has(tag))) :
+            this.devices;
+
         const nodes = [];
         const edges = [];
 
-        // Create router/gateway node at the top
-        const gatewayNode = {
-            id: 'gateway',
-            label: 'Internet Gateway\nRouter',
-            title: 'Network Gateway/Router - Main network access point',
-            shape: 'box',
-            color: {
-                background: '#0a0a0a',
-                border: '#00ffff'
-            },
-            font: {
-                color: '#00ffff',
-                size: 14,
-                align: 'center'
-            },
-            level: 0 // Top level in hierarchy
-        };
-        nodes.push(gatewayNode);
+        // Find routers in filtered devices
+        const routers = filteredDevices.filter(d => d.device_type === 'router');
 
-        // Group devices by type for better organization
-        const deviceGroups = {
-            routers: [],
-            switches: [],
-            servers: [],
-            computers: [],
-            mobile: [],
-            iot: []
-        };
+        if (routers.length > 0) {
+            // Use the first router as the main gateway
+            const mainRouter = routers[0];
+            nodes.push(this.createDeviceNode(mainRouter, 0));
 
-        this.devices.forEach((device) => {
-            const deviceType = device.device_type || this.getDeviceType(device);
-            switch(deviceType) {
-                case 'router':
-                    deviceGroups.routers.push(device);
-                    break;
-                case 'server':
-                    deviceGroups.servers.push(device);
-                    break;
-                case 'mobile':
-                    deviceGroups.mobile.push(device);
-                    break;
-                case 'iot':
-                    deviceGroups.iot.push(device);
-                    break;
-                default:
-                    deviceGroups.computers.push(device);
-            }
-        });
-
-        // Create intermediate switch nodes for organization
-        let level = 1;
-        const switchNodes = [];
-
-        // Create switch for computers
-        if (deviceGroups.computers.length > 0) {
-            const switchNode = {
-                id: 'switch-computers',
-                label: 'Switch\n(Computers)',
-                title: 'Network Switch - Computer devices',
-                shape: 'box',
-                color: {
-                    background: '#0a0a0a',
-                    border: '#00aaaa'
-                },
-                font: {
-                    color: '#00aaaa',
-                    size: 12,
-                    align: 'center'
-                },
-                level: level
-            };
-            nodes.push(switchNode);
-            switchNodes.push('switch-computers');
-
-            edges.push({
-                from: 'gateway',
-                to: 'switch-computers',
-                color: '#00ffff',
-                width: 3,
-                label: 'LAN'
+            // Add all other devices connected to the main router
+            const otherDevices = filteredDevices.filter(d => d.ip !== mainRouter.ip);
+            otherDevices.forEach((device) => {
+                nodes.push(this.createDeviceNode(device, 1));
+                edges.push({
+                    from: mainRouter.ip,
+                    to: device.ip,
+                    color: '#00ffff',
+                    width: 2
+                });
+            });
+        } else {
+            // No router found, show all devices at same level
+            filteredDevices.forEach((device) => {
+                nodes.push(this.createDeviceNode(device, 0));
             });
         }
-
-        // Create switch for mobile/IoT devices
-        if (deviceGroups.mobile.length > 0 || deviceGroups.iot.length > 0) {
-            const switchNode = {
-                id: 'switch-wireless',
-                label: 'Wireless\nAccess Point',
-                title: 'Wireless Access Point - Mobile and IoT devices',
-                shape: 'box',
-                color: {
-                    background: '#0a0a0a',
-                    border: '#00aaaa'
-                },
-                font: {
-                    color: '#00aaaa',
-                    size: 12,
-                    align: 'center'
-                },
-                level: level
-            };
-            nodes.push(switchNode);
-            switchNodes.push('switch-wireless');
-
-            edges.push({
-                from: 'gateway',
-                to: 'switch-wireless',
-                color: '#00ffff',
-                width: 3,
-                label: 'WiFi'
-            });
-        }
-
-        // Create switch for servers
-        if (deviceGroups.servers.length > 0) {
-            const switchNode = {
-                id: 'switch-servers',
-                label: 'Server\nSwitch',
-                title: 'Server Switch - Network servers',
-                shape: 'box',
-                color: {
-                    background: '#0a0a0a',
-                    border: '#00aaaa'
-                },
-                font: {
-                    color: '#00aaaa',
-                    size: 12,
-                    align: 'center'
-                },
-                level: level
-            };
-            nodes.push(switchNode);
-            switchNodes.push('switch-servers');
-
-            edges.push({
-                from: 'gateway',
-                to: 'switch-servers',
-                color: '#00ffff',
-                width: 3,
-                label: 'DMZ'
-            });
-        }
-
-        level = 2;
-
-        // Add computer devices
-        deviceGroups.computers.forEach((device, index) => {
-            const node = this.createDeviceNode(device, level, index);
-            nodes.push(node);
-            edges.push({
-                from: 'switch-computers',
-                to: device.ip,
-                color: '#00ffff',
-                width: 2
-            });
-        });
-
-        // Add mobile/IoT devices
-        [...deviceGroups.mobile, ...deviceGroups.iot].forEach((device, index) => {
-            const node = this.createDeviceNode(device, level, index);
-            nodes.push(node);
-            edges.push({
-                from: 'switch-wireless',
-                to: device.ip,
-                color: '#00ffff',
-                width: 2
-            });
-        });
-
-        // Add server devices
-        deviceGroups.servers.forEach((device, index) => {
-            const node = this.createDeviceNode(device, level, index);
-            nodes.push(node);
-            edges.push({
-                from: 'switch-servers',
-                to: device.ip,
-                color: '#00ffff',
-                width: 2
-            });
-        });
-
-        // Add router devices directly to gateway
-        deviceGroups.routers.forEach((device, index) => {
-            const node = this.createDeviceNode(device, 1, index);
-            nodes.push(node);
-            edges.push({
-                from: 'gateway',
-                to: device.ip,
-                color: '#00ffff',
-                width: 3,
-                label: 'WAN'
-            });
-        });
 
         // Update the network
         this.network.setData({
@@ -693,10 +695,14 @@ class WireInterpreter {
         };
 
         if (device.logo_url) {
+            console.log(`Using logo for ${device.vendor}: ${device.logo_url}`);
             node.shape = 'image';
             node.image = device.logo_url;
             node.size = 30;
+            // Add error handling for image loading
+            node.brokenImage = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAiIGhlaWdodD0iMzAiIHZpZXdCb3g9IjAgMCAzMCAzMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTUiIGN5PSIxNSIgcj0iMTUiIGZpbGw9IiMwMDAwMDAiIHN0cm9rZT0iIzAwZmZmZiIgc3Ryb2tlLXdpZHRoPSIyIi8+Cjx0ZXh0IHg9IjE1IiB5PSIyMCIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmaWxsPSIjMDBmZmZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5JPPC90ZXh0Pgo8L3N2Zz4=';
         } else {
+            console.log(`No logo for ${device.vendor}, using icon: ${icon}`);
             node.shape = shape;
             node.icon = icon ? {
                 face: 'FontAwesome',
@@ -771,6 +777,9 @@ class WireInterpreter {
         if (device.hostname && device.hostname !== 'Unknown') {
             tooltip += `<strong>Hostname:</strong> ${device.hostname}<br>`;
         }
+        if (device.tags && device.tags.length > 0) {
+            tooltip += `<strong>Tags:</strong> ${device.tags.join(', ')}<br>`;
+        }
         if (device.ports && device.ports.length > 0) {
             tooltip += `<strong>Open Ports:</strong><br>`;
             device.ports.slice(0, 5).forEach(port => {
@@ -821,6 +830,7 @@ class WireInterpreter {
                     if (response.ok) {
                         const data = await response.json();
                         this.devices = data.devices || [];
+                        this.updateTagFilters();
                         this.updateNetworkGraph();
                         this.logMessage('Scan data loaded successfully', 'success');
                     } else {
@@ -863,7 +873,8 @@ class WireInterpreter {
 
     logMessage(message, type = 'info') {
         const logOutput = document.getElementById('log-output');
-        const timestamp = new Date().toLocaleTimeString();
+        const now = new Date();
+        const timestamp = now.toLocaleTimeString();
         const formattedMessage = `[${timestamp}] ${message}`;
 
         logOutput.textContent += (logOutput.textContent ? '\n' : '') + formattedMessage;
@@ -892,5 +903,5 @@ function hideApiKeyAlert() {
 
 // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new WireInterpreter();
+    window.wireInterpreter = new WireInterpreter();
 });

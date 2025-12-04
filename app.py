@@ -250,6 +250,8 @@ def get_device_info_from_oid(host):
             if 'osmatch' in host and host['osmatch']:
                 best_match = host['osmatch'][0]  # Best OS match
                 device_info['os_info'] = best_match.get('name', 'Unknown')
+                device_info['os_accuracy'] = best_match.get('accuracy', '0')
+                device_info['os_family'] = best_match.get('osclass', [{}])[0].get('osfamily', 'Unknown')
                 device_info['identified'] = True
 
             # Determine device type from OS info and other data
@@ -336,15 +338,26 @@ def run_nmap_scan(target, options, thorough=False):
                     'ports': []
                 }
 
-                # Get open ports
+                # Get open ports with detailed service information
                 if 'tcp' in nm[host]:
                     for port in nm[host]['tcp']:
                         if nm[host]['tcp'][port]['state'] == 'open':
-                            device['ports'].append({
+                            port_data = nm[host]['tcp'][port]
+                            detailed_port = {
                                 'port': port,
-                                'service': nm[host]['tcp'][port]['name'],
-                                'state': nm[host]['tcp'][port]['state']
-                            })
+                                'service': port_data.get('name', 'unknown'),
+                                'state': port_data.get('state', 'unknown'),
+                                'version': port_data.get('version', ''),
+                                'product': port_data.get('product', ''),
+                                'extrainfo': port_data.get('extrainfo', ''),
+                                'cpe': port_data.get('cpe', [])
+                            }
+
+                            # Add script output for banner grabbing (if available)
+                            if 'script' in port_data:
+                                detailed_port['scripts'] = port_data['script']
+
+                            device['ports'].append(detailed_port)
 
                 devices.append(device)
 
@@ -410,16 +423,27 @@ def run_nmap_scan(target, options, thorough=False):
                             device['os_info'] = device_info['os_info']
                             device['identified'] = device_info['identified']
 
-                            # Update ports with detailed info
+                            # Update ports with detailed service info
                             device['ports'] = []
                             if 'tcp' in detailed_nm[ip]:
                                 for port in detailed_nm[ip]['tcp']:
                                     if detailed_nm[ip]['tcp'][port]['state'] == 'open':
-                                        device['ports'].append({
+                                        port_data = detailed_nm[ip]['tcp'][port]
+                                        detailed_port = {
                                             'port': port,
-                                            'service': detailed_nm[ip]['tcp'][port]['name'],
-                                            'state': detailed_nm[ip]['tcp'][port]['state']
-                                        })
+                                            'service': port_data.get('name', 'unknown'),
+                                            'state': port_data.get('state', 'unknown'),
+                                            'version': port_data.get('version', ''),
+                                            'product': port_data.get('product', ''),
+                                            'extrainfo': port_data.get('extrainfo', ''),
+                                            'cpe': port_data.get('cpe', [])
+                                        }
+
+                                        # Add script output for banner grabbing (if available)
+                                        if 'script' in port_data:
+                                            detailed_port['scripts'] = port_data['script']
+
+                                        device['ports'].append(detailed_port)
 
                             scan_output.append(f"✓ Enhanced: {ip} with detailed information")
                             break
